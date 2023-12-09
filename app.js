@@ -10,7 +10,7 @@ const bcrypt = require('bcrypt');
 const saltRounds = 10;
 const path = require('path');
 
-app.use(cors())
+app.use(express.json({ limit: '10mb' }));
 
 const mysql = require('mysql2');
 
@@ -20,8 +20,7 @@ const connection = mysql.createConnection({
     user: 'root',
     database: 'dtctest'
 });
-//upload Image----------------------------------------------------------------------------------------------------------------
-// ตั้งค่า Multer
+// upload------------------------------------------------------------------------------------------------------------------
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
       cb(null, 'D:/SDC-nodejs/uploads');
@@ -32,20 +31,21 @@ const storage = multer.diskStorage({
   });
   
   const upload = multer({ storage: storage });
-  
-  let uploadedImageFileName = '';
-  
-  app.post('/upload', upload.single('image'), (req, res) => {
-    uploadedImageFileName = req.file.filename; // เปลี่ยนเป็น req.file.filename
-    console.log('Image path:', req.file.path);
-    console.log('Image filename:', uploadedImageFileName);
-  
-    // เก็บลงฐานข้อมูลหรือทำอย่างอื่นตามต้องการ
-    // ...
-  
-    res.status(200).json({ message: 'Image uploaded successfully' });
+let uploadedImageBase64 = '';
+ app.post('/upload', upload.single('image'), (req, res) => {
+    
+    try {
+        console.log('inside upload!!!');
+      console.log(req.body)
+      const base64Image = req.body.image;
+      uploadedImageBase64 = base64Image;
+      console.log('Base64 Image:', uploadedImageBase64);
+      res.status(200).send('Base64 Image uploaded successfully!');
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).send('Internal Server Error');
+    }
   });
-  
   // upload------------------------------------------------------------------------------------------------------------------
   // Register----------------------------------------------------------------------------------------------------------------
   app.post('/register', jsonParser, function (req, res, next) {
@@ -53,11 +53,11 @@ const storage = multer.diskStorage({
           return res.json({ status: 'error', message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
       } else {
        
-             // console.log('Request Body:', req.body);
+           console.log('Request Body:', req.body);
   
               connection.execute(
-                  'INSERT INTO users (user_username, user_password, user_fname, user_lname, user_citizenid, user_phone, user_image) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                  [req.body.user_username, req.body.user_password, req.body.user_fname, req.body.user_lname, req.body.user_citizenid, req.body.user_phone, uploadedImageFileName],
+                  'INSERT INTO users (user_username, user_password, user_fname, user_lname, user_citizenid, user_phone, user_imagebase) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                  [req.body.user_username, req.body.user_password, req.body.user_fname, req.body.user_lname, req.body.user_citizenid, req.body.user_phone, uploadedImageBase64],
                   function (err, results, fields) {
                       if (err) {
                           return res.json({ status: 'error', message: err });
@@ -133,16 +133,19 @@ app.get('/getUserInformation/:token', function (req, res) {
                 res.json({ status: 'error', message: 'no user found' })
                 return
             }
-            let Ususername = userData[0].user_fname
+            let Ususername = userData[0].user_username
             let Uspassword = userData[0].user_password
             let Usfname = userData[0].user_fname
             let Uslname = userData[0].user_lname
             let Uscitizen = userData[0].user_citizenid
             let Usphone = userData[0].user_phone
             let Usimage = userData[0].user_image
-            const userFirstName = userData[0].user_fname;
-
-            res.json({ status: 'ok', message: 'user information retrieved',usUsername :Ususername , usPassword:Uspassword,usfname: Usfname ,uslname:Uslname,usCitizen:Uscitizen,usPhone:Usphone,usImage:Usimage});
+            let imgBase = userData[0].user_imagebase;
+            var bufferBase64 = new Buffer.from(imgBase).toString('base64');
+            console.log("bufferBase64");
+            console.log(bufferBase64);
+            console.log('END FETCH BASE64');
+            res.json({ status: 'ok', message: 'user information retrieved',usUsername :Ususername , usPassword:Uspassword,usfname: Usfname ,uslname:Uslname,usCitizen:Uscitizen,usPhone:Usphone, usImagebase:bufferBase64});
         }
     );
 });

@@ -49,25 +49,44 @@ let uploadedImageBase64 = '';
   // upload------------------------------------------------------------------------------------------------------------------
   // Register----------------------------------------------------------------------------------------------------------------
   app.post('/register', jsonParser, function (req, res, next) {
-      if (!req.body.user_username || !req.body.user_password) {
-          return res.json({ status: 'error', message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
-      } else {
-       
-           console.log('Request Body:', req.body);
-  
-              connection.execute(
-                  'INSERT INTO users (user_username, user_password, user_fname, user_lname, user_citizenid, user_phone, user_imagebase) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                  [req.body.user_username, req.body.user_password, req.body.user_fname, req.body.user_lname, req.body.user_citizenid, req.body.user_phone, uploadedImageBase64],
-                  function (err, results, fields) {
-                      if (err) {
-                          return res.json({ status: 'error', message: err });
-                      }
-                      return res.json({ status: 'ok' });
-                  }
-              );
-          
-      }
-  });
+    const userCitizenId = req.body.user_citizenid;
+
+    // ตรวจสอบว่า user_citizenid เป็นตัวเลขหรือไม่
+    if (!/^\d+$/.test(userCitizenId)) {
+        return res.json({ status: 'error', message: 'เลขบัตรประชาชนควรเป็นตัวเลขเท่านั้น' });
+    }
+
+    if (!req.body.user_username || !req.body.user_password) {
+        return res.json({ status: 'error', message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    }
+
+
+    connection.execute(
+        'SELECT * FROM users WHERE user_citizenid=?',
+        [userCitizenId],
+        function (err, users, fields) {
+            if (err) {
+                return res.json({ status: 'error', message: err });
+            }
+
+            if (users.length > 0) {
+                return res.json({ status: 'error', message: 'เลขบัตรประชาชนนี้ถูกใช้ไปแล้ว' });
+            }
+
+            connection.execute(
+                'INSERT INTO users (user_username, user_password, user_fname, user_lname, user_citizenid, user_phone, user_imagebase) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [req.body.user_username, req.body.user_password, req.body.user_fname, req.body.user_lname, userCitizenId, req.body.user_phone, uploadedImageBase64],
+                function (err, results, fields) {
+                    if (err) {
+                        return res.json({ status: 'error', message: err });
+                    }
+                    return res.json({ status: 'ok' });
+                }
+            );
+        }
+    );
+});
+
   
 // Register----------------------------------------------------------------------------------------------------------------
 // Login-------------------------------------------------------------------------------------------------------------------
